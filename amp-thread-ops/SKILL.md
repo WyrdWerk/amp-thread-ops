@@ -23,6 +23,7 @@ amp -ox -m <mode> -x "<prompt>" --title "<title>" --no-archive-after-execute
 ```
 
 - The message MUST immediately follow `-x`. A trailing positional after other flags fails with "User message must be provided".
+- `-m` accepts `low|medium|high|ultra` or a plugin/custom mode key (case-insensitive).
 - `--no-archive-after-execute` keeps the thread steerable; the default auto-archives after the run (verified: `"archived": true` in export after a plain `-x` run).
 - Capture the thread ID (`T-...`) from the printed URL.
 - The warning "No Amp project matches the Git remotes" is benign outside a git repo.
@@ -80,12 +81,29 @@ amp threads delete <id>               # permanent removal
 
 Verified behavior (2026-09-24):
 
-- **Archive** works on orb threads from the CLI; both directions confirmed (`✓ Thread archived/unarchived successfully`). Full round-trip tested: archive → unarchive → re-archive.
+- **Archive** works on orb threads from the CLI; both directions confirmed. Full round-trip tested: archive → unarchive → re-archive.
 - **Verify lifecycle state via server search, not `threads list`** (list is checkout-scoped and unreliable for orb threads):
   - `amp_find_thread {query: "archived:true"}` — archived threads appear; omit the filter and they disappear.
   - Combine with `id:<thread>` for a single-thread check: `archived:true id:T-...`.
-- **Snooze is NOT programmatically settable**: no CLI command (`amp --help | grep -i snooze` → nothing) and no MCP surface (`manage_amp` has no threads topic). Snoozing is a web-UI-only action. Its **state is still queryable**: `amp_find_thread` accepts `snoozed:true|false` filters, so you can detect but not change snooze state from scripts. If the operator asks to snooze, point them to the web UI.
+- **Snooze is NOT programmatically settable**: no CLI command (`amp --help | grep -i snooze` → nothing) and no MCP surface (`manage_amp` has no threads topic). Snoozing is a web-UI-only action. Its **state is still queryable**: `amp_find_thread` accepts `snoozed:true|false` filters. If the operator asks to snooze, point them to the web UI.
 - Archived ≠ deleted: archived threads keep their URL, transcript, and can still be read via `amp_read_thread` and restored with `--unarchive`.
+
+## Deployment & propagation (this skill's own distribution)
+
+Canonical home: GitHub `WyrdWerk/amp-thread-ops` (hosts `install.sh`, `AGENTS.md` runbook, `deploy/originals.json`). Three copies of SKILL.md must stay in sync: `~/.agents/skills/amp-thread-ops/` (local), the Amp Personal/User Skills repo (`amp clone user-skills`), and GitHub.
+
+Discovery gaps (verified):
+
+- **Amp's own agent** reads the User Skills repo. Account install: `amp skill add https://github.com/WyrdWerk/amp-thread-ops`.
+- **External agents in orbs get neither User Skills nor local files** — a fresh orb has no `~/.agents/skills/`. Bootstrap by prepending a non-fatal installer to each external agent's new-thread command (see `AGENTS.md` Step 3):
+
+  ```
+  (curl -fsSL https://raw.githubusercontent.com/WyrdWerk/amp-thread-ops/main/install.sh | bash) >/dev/null 2>&1; <original command>
+  ```
+
+  Never set `--setup-script` on a built-in external agent — it replaces the agent's default install command.
+- **Agents scan `~/.agents/skills/` at process start** — install before the agent launches, not mid-session. A thread whose agent is already running will only see the skill after a restart/new thread.
+- **Hand-off pattern**: a user can give this repo URL to Puck in any Amp setup; Puck follows `AGENTS.md` to deploy end-to-end (Amp agent + local + all external agents) with verification and revert steps.
 
 ## Gotchas (all encountered and verified)
 
@@ -97,6 +115,8 @@ Verified behavior (2026-09-24):
 6. Mode is fixed at creation; `--mode` on `threads continue -ox` is ignored.
 7. Snooze cannot be set from CLI/MCP — web UI only (state queryable via `snoozed:` filters).
 8. Mode name ≠ served model — always verify via `threads export` `"model"`.
+9. Orb external-agent threads may show no transcript output while booting — check the web UI terminal view for permission prompts.
+10. `amp.remoteThreadCreation.enabled` does not make `-x` threads server-visible — only `-ox` does (falsified by test).
 
 ## Standard verification loop
 
@@ -109,4 +129,4 @@ Verified behavior (2026-09-24):
 
 ## Maintenance
 
-This skill exists in two copies that must stay in sync: `~/.agents/skills/amp-thread-ops/` (local) and the Personal Skills repo (`amp clone user-skills`, commit, push to `main`). After learning new mechanics, update both.
+Three copies of this skill must stay in sync: `~/.agents/skills/amp-thread-ops/` (local), the Personal Skills repo (`amp clone user-skills`, commit, push to `main`), and GitHub `WyrdWerk/amp-thread-ops` (canonical; also carries `install.sh`, `AGENTS.md`, `deploy/originals.json`). After learning new mechanics, update all three.

@@ -1,0 +1,9 @@
+{
+  "pi": "pi --approve ${m:+--model \"$m\"} ${m:---provider neuralwatt} -- \"$p\"",
+  "opencode": "opencode --auto",
+  "antigravity": "agy --dangerously-skip-permissions -i=\"$p\"",
+  "claude-code": "claude --dangerously-skip-permissions ${m:+--model \"$m\"} -- \"$p\"",
+  "codex": "codex ${m:+-m \"$m\"} -c \"$trust\" $codex_ui $codex_privacy --dangerously-bypass-approvals-and-sandbox -- \"$p\"",
+  "cursor": "agent --force --sandbox disabled --approve-mcps ${m:+--model \"$m\"} -- \"$p\"",
+  "grok": "grok --always-approve --minimal ${m:+-m \"$m\"} \"$p\""
+}
